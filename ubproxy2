@@ -1,0 +1,332 @@
+#!/usr/bin/python
+#  This is a tool to automatically configure system-wide proxy settings in Ubuntu 
+#  Its an invaluble program to configure proxies with username and password especially in universities and companies
+#  which eliminates the need of repetitive editing of system files which is prone to frequent manual errors	
+#  You need to be a root user to run this program.
+#  
+#  visit The project url at  http://goo.gl/qjR9s
+#
+#	Author:  Sadhanandh Iyer
+#
+#	E-mail:  sadhanandhiyer[@]gmail[.]com
+#
+#	Date:    30/25/2011
+#
+#	Profile: http://goo.gl/IVg3g
+# 
+# """With power comes responsibility, so use 'sudo' with care"""
+# Changelog:
+#
+#>Profile support added
+#>Profile saving enaled
+#
+from Tkinter import *
+import tkMessageBox
+import os
+import re
+import sys
+from datetime import datetime
+
+filenames=["/etc/bash.bashrc","/etc/environment"]
+filename2="/etc/apt/apt.conf"
+logs="/var/log/proxychangerlog"    
+
+
+def filewrite2(srv,port):
+    lin=[]
+    typ0 = ("http","ftp","https")
+    for filenam in filenames:
+        fil = open(filenam,"a")
+        for x in typ0:
+			if (filenam.find("bash")!=-1) :
+				lin.append("export %s_proxy=\"%s://%s:%s\"\n" % (x,x,srv,port))
+			else:	
+				lin.append("%s_proxy=\"%s://%s:%s\"\n" % (x,x,srv,port))
+        for l in lin:
+            fil.write(l)
+        fil.close()
+        lin=[]
+
+
+    lin2=[]
+    fil = open(filename2,"w")
+    for x1 in typ0:
+        lin2.append('Acquire::%s::proxy "%s://%s:%s/";\n' %(x1,x1,srv,port))    
+    for l1 in lin2:
+        fil.write(l1)
+    fil.close()
+
+def filewrite4(srv,port,name,pasw):
+    lin=[]
+    typ0 = ("http","ftp","https")
+    for filenam in filenames:
+        fil = open(filenam,"a")
+        for x in typ0:
+			if (filenam.find("bash")!=-1):
+				lin.append("export %s_proxy=\"%s://%s:%s@%s:%s\"\n" % (x,x,name,pasw,srv,port))
+			else:	
+				lin.append("%s_proxy=\"%s://%s:%s@%s:%s\"\n" % (x,x,name,pasw,srv,port))
+        for l in lin:
+            fil.write(l)
+        fil.close()
+        lin=[]
+
+
+    lin2=[]
+    fil = open(filename2,"w")
+    for x1 in typ0:
+        lin2.append('Acquire::%s::proxy "%s://%s:%s@%s:%s/";\n' %(x1,x1,name,pasw,srv,port))    
+    for l1 in lin2:
+        fil.write(l1)
+    fil.close()
+
+def backup(files):
+	homefol=os.getenv('HOME')
+	folder=homefol+"/.Ubuntu-Proxy/"	
+	try:
+			
+		os.mkdir(folder)
+	except:
+		pass
+		
+	filstr=datetime.now().strftime('%Y%h%d_%H%M%S')
+	newfolder=folder+filstr+"/"
+	try:
+		os.mkdir(newfolder)
+	except:
+		pass
+	
+	for fil in files:
+		try:
+			f1=open(fil,"r")
+			l=f1.read()
+			f1.close()
+			
+			if(fil.find(".")==-1):
+				newname=fil[fil.rfind('/')+1:]+".backup"
+			
+			
+			else: 
+				fil=fil[fil.rfind('/')+1:]
+				newname=fil[:fil.find(".")]+".backup"
+			newname=newfolder+newname
+			f2=open(newname,"w")
+			f2.write(l)
+			f2.close()
+		except :
+			pass
+
+def clean(file2,files,para=False):
+	if(para):
+		for file1 in files:
+			try:
+				f=open(file1,'r')	
+				l = f.read()
+				l = re.sub(r'\n?(.*http_proxy\s*=\s*".*")',r'\n# \g<1>',l)
+				l = re.sub(r'\n?(.*https_proxy\s*=\s*".*")',r'\n# \g<1>',l)
+				l = re.sub(r'\n?(.*ftp_proxy\s*=\s*".*")',r'\n# \g<1>',l)
+				f.close()
+				f=open(file1,'w')
+				f.write(l)
+				f.close()
+			except:
+
+				pass
+	else:
+		for file1 in files:
+			try:
+				f=open(file1,'r')
+				l = f.read()
+				l = re.sub(r'\n?(.*http_proxy\s*=\s*".*")',r'',l)
+				l = re.sub(r'\n?(.*https_proxy\s*=\s*".*")',r'',l)
+				l = re.sub(r'\n?(.*ftp_proxy\s*=\s*".*")',r'',l)
+				f.close()
+				f=open(file1,'w')
+				f.write(l)
+				f.close()
+			except:
+
+				pass
+		try:		
+			f=open(file2,"r")
+			l = f.read()
+			l = re.sub(r'\n?(.*Acquire.*".*?";)' ,"",l)		
+			f.close()
+			f=open(file2,'w')
+			f.write(l)
+			f.close()
+		except:
+
+			pass
+
+
+
+class mainwin():
+    def __init__(self,master=None):
+	self.master=master
+	self.text()
+	self.backp()
+        self.varch=IntVar()
+        self.var1=StringVar()
+        self.var2=StringVar()
+	self.var3=StringVar()
+	self.var4=StringVar()
+	self.var3=self.var4=""        
+	self.setvar=StringVar()
+	self.options=[""]
+	self.profileload()
+        Label(master,text="Proxy Settings:").grid(row=0,columnspan=2)
+        self.but1=Button(master,text="Remove Proxy",command=self.removeproxy).grid(row=1,columnspan=2)
+        self.but2=Button(master,text="Set Proxy",command=self.setproxy).grid(row =2,columnspan=2)
+        self.lab1=Label(master,text="IP:").grid(row=3,column=0)
+        self.lab2=Label(master,text="Port:").grid(row=4,column=0)
+        self.ent1=Entry(master,text="",textvariable=self.var1).grid(row=3,column=1)
+        self.ent2=Entry(master,text="",textvariable=self.var2).grid(row=4,column=1)
+        self.ckbut=Checkbutton(root,text="Username pass?",command=self.check,variable=self.varch)
+        self.ckbut.grid(row=5)
+	self.opt=OptionMenu(master,self.setvar,*self.options)
+	self.opt.grid(row=6,column=0)
+	self.profileload()
+	self.but3=Button(master,text="Select ?",command=self.selectprof).grid(row=6,column=1)
+	self.but4=Button(master,text="Save",command=self.saveprof).grid(row=7,column=0)
+        
+    def saveprof(self):
+	homefol=os.getenv('HOME')
+	folder=homefol+"/.Ubuntu-Proxy/"	
+	filep=folder+"profile"
+	if(os.path.exists(filep)):
+		fl=open(filep,'r')
+		r=fl.read()
+		fl.close()
+		e=re.findall(r'<(\d)>\s*\((.*)\)',r)
+		le=len(e)
+		fl=open(filep,'a')
+		if(self.varch.get()==1):
+			fl.write('\n<%d>(%s %s %s %s)' %(le,self.var1.get(),self.var2.get(),self.var3,self.var4))
+		else:
+			fl.write('\n<%d>(%s %s )' %(le,self.var1.get(),self.var2.get()))
+		fl.close()
+	else:
+		fl=open(filep,'a')
+		le=0
+		if(self.varch.get()==1):
+			fl.write('\n<%d>(%s %s %s %s)' %(le,self.var1.get(),self.var2.get(),self.var3,self.var4))
+		else:
+			fl.write('\n<%d>(%s %s )' %(le,self.var1.get(),self.var2.get()))
+		fl.close()
+	tkMessageBox.showinfo("msg","Present Settings are successfully saved into the profile")
+	self.quitme()
+	
+		
+	
+
+    def selectprof(self):
+	inte=self.setvar.get()
+	fun=self.e[int(inte)]
+	arg=[s for s in re.split(" ",fun[1])]
+	if(len(arg)==4):
+		
+		self.varch .set(1)
+		self.var1.set(arg[0])
+		self.var2.set(arg[1])
+		self.var3=arg[2]
+		self.var4=arg[3]
+	elif(len(arg)==2):
+		self.varch.set(0)
+		self.var1.set(arg[0])
+		self.var2.set(arg[1])
+
+		
+	else:
+		tkMessageBox.showinfo("msg","Error in profile script")
+		self.flog.write("Error in profile script\n")
+
+    def profileload(self):
+	
+	homefol=os.getenv('HOME')
+	folder=homefol+"/.Ubuntu-Proxy/"	
+	filep=folder+"profile"
+	try:
+		f=open(filep,'r')
+		r=f.read()
+		f.close()
+		e=re.findall(r'<(\d)>\s*\((.*)\)',r)
+		self.e=e
+		self.options=[nu for nu,un in e ]
+	except:
+		pass
+	
+
+    def check(self):
+        if(self.varch.get()==1):
+            win2=subwin(self.master,self)
+    def getval(self,str1,pass1):
+	self.var3 = str1
+	self.var4 = pass1
+    def removeproxy(self):
+	clean(filename2,filenames)
+	tkMessageBox.showinfo("msg","Removed")
+	self.flog.write("old proxy removed \n")
+	self.quitme()	
+	
+    def setproxy(self):
+	if(self.varch.get()==1):
+		filewrite4(self.var1.get() ,self.var2.get() ,self.var3, self.var4)
+		self.flog.write("4 var proxy changed \n")
+	else:
+		filewrite2(self.var1.get() ,self.var2.get())
+		self.flog.write("2 var proxy changed \n")
+	tkMessageBox.showinfo("msg","Done")
+	self.quitme()
+	
+
+    def detog(self):
+        self.ckbut.deselect()
+    def quitme(self):
+	self.flog.close()
+        self.master.quit()
+    def backp(self):
+	backup([filenames[0],filenames[1],filename2])
+	self.flog.write("Files have been backed up in the same location with .backup extension \n")
+    def text(self):
+	try:
+		self.flog=open(logs,"a")
+		self.flog.write(str(datetime.now())+"\n")
+	except:
+		tkMessageBox.showinfo("msg","You are not a Root user -> run this as 'sudo'")
+		sys.exit(0)
+		
+
+class subwin():
+    def __init__(self,master=None,mainw=None):
+        self.str1=StringVar()
+        self.pass1=StringVar()
+        self.master=master
+        self.mainw=mainw
+	self.str1.set(mainw.var3)
+	self.pass1.set(mainw.var4)
+        self.root1=Toplevel(master)
+        Label(self.root1,text="Username:").grid(row=0)
+        Label(self.root1,text="Password:").grid(row=1)
+        self.e1=Entry(self.root1,text=" ",textvariable=self.str1)
+	self.e1.grid(row=0,column=1)
+        self.e2=Entry(self.root1,show="*",textvariable=self.pass1)
+	self.e2.grid(row=1,column=1)
+        Button(self.root1,text=" Ok   ",command=self.oked).grid(row=2,column=0)
+        Button(self.root1,text="Cancel",command=self.canceled).grid(row=2,column=1)
+        
+    def canceled(self):
+        self.mainw.detog()
+        self.root1.destroy()
+        
+    def oked(self):
+        self.mainw.getval(self.str1.get(),self.pass1.get())
+        self.root1.destroy()
+        
+
+
+root= Tk()
+mainw=mainwin(root)
+root.protocol("WM_DELETE_WINDOW",root.quit)
+root.title("Proxy Settings)")
+root.mainloop()
