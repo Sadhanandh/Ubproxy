@@ -1,7 +1,7 @@
 Tkinter bindings of Ubproxy 
 
 ubproxy was originally commandline only .
-But a lot of people requested a GUI version as the commandline parameter was confusing.
+But a lot of people requested a GUI version as the commandline parameters were confusing.
 
 Requires - python-tk
 
